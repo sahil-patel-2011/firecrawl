@@ -2,10 +2,24 @@ import Redlock from "redlock";
 import { config } from "../config";
 import Client from "ioredis";
 
+const redlockClient = config.PI5_PROFILE
+  ? new Client(config.REDIS_RATE_LIMIT_URL ?? "redis://127.0.0.1:9", {
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 0,
+      retryStrategy: () => null,
+    })
+  : new Client(config.REDIS_RATE_LIMIT_URL!);
+if (config.PI5_PROFILE) {
+  redlockClient.on("error", () => {
+    // This profile does not run Redis.
+  });
+}
+
 export const redlock = new Redlock(
   // You should have one client for each independent redis node
   // or cluster.
-  [new Client(config.REDIS_RATE_LIMIT_URL!)],
+  [redlockClient],
   {
     // The expected clock drift; for more details see:
     // http://redis.io/topics/distlock
