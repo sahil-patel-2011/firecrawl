@@ -5,7 +5,18 @@ import type { Logger } from "winston";
 import { stat } from "fs/promises";
 import { HTML_TO_MARKDOWN_PATH } from "../natives";
 import { convertHTMLToMarkdownWithHttpService } from "./html-to-markdown-client";
-import { postProcessMarkdown } from "@mendable/firecrawl-rs";
+// The Rust post-processor is optional. The Pi profile does not compile it.
+let postProcessMarkdown = async (markdown: string) => markdown;
+try {
+  const native = require("@mendable/firecrawl-rs") as {
+    postProcessMarkdown?: (markdown: string) => Promise<string>;
+  };
+  if (typeof native.postProcessMarkdown === "function") {
+    postProcessMarkdown = native.postProcessMarkdown;
+  }
+} catch {
+  // Native module is absent. Converted markdown is still returned.
+}
 
 // TODO: add a timeout to the Go parser
 
