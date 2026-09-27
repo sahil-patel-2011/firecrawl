@@ -58,12 +58,24 @@ type ScriptHashes = {
 
 const scripts: ScriptHashes = {} as ScriptHashes;
 
-const redis = new IORedis(config.REDIS_URL!, {
-  lazyConnect: true,
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-  enableAutoPipelining: true,
-});
+const redis = new IORedis(
+  config.PI5_PROFILE
+    ? (config.REDIS_URL ?? "redis://127.0.0.1:9")
+    : config.REDIS_URL!,
+  {
+    lazyConnect: true,
+    maxRetriesPerRequest: config.PI5_PROFILE ? 0 : null,
+    enableReadyCheck: false,
+    enableAutoPipelining: true,
+    enableOfflineQueue: config.PI5_PROFILE ? false : undefined,
+    retryStrategy: config.PI5_PROFILE ? () => null : undefined,
+  },
+);
+if (config.PI5_PROFILE) {
+  redis.on("error", () => {
+    // This profile does not run Redis.
+  });
+}
 
 let initPromise: Promise<void> | null = null;
 

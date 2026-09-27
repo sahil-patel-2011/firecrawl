@@ -40,7 +40,14 @@ import {
 import { calculateThreatScanCredits } from "../../lib/scrape-billing";
 
 configDotenv();
-const redis = new Redis(config.REDIS_URL!);
+const redis = config.PI5_PROFILE
+  ? new Redis(config.REDIS_URL ?? "redis://127.0.0.1:9", {
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 0,
+      retryStrategy: () => null,
+    })
+  : new Redis(config.REDIS_URL!);
 
 // Max Links that "Smart /map" can return
 const MAX_FIRE_ENGINE_RESULTS = 500;
