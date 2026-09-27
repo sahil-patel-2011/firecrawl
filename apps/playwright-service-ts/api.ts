@@ -187,6 +187,8 @@ interface UrlModel {
 let browser: Browser;
 
 const initializeBrowser = async () => {
+  const pi5 =
+    process.env.PI5_PROFILE === '1' || process.env.PI5_PROFILE === 'true';
   browser = await chromium.launch({
     headless: true,
     args: [
@@ -197,6 +199,17 @@ const initializeBrowser = async () => {
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu',
+      // Cap renderer heaps so 16 tabs stay inside the Pi's browser budget.
+      ...(pi5
+        ? [
+            '--renderer-process-limit=16',
+            '--js-flags=--max-old-space-size=256',
+            '--disable-extensions',
+            '--disable-background-networking',
+            '--mute-audio',
+            '--disable-features=Translate,BackForwardCache',
+          ]
+        : []),
     ],
   });
 };
@@ -229,7 +242,7 @@ const createContext = async (
 
   if (BLOCK_MEDIA) {
     await newContext.route(
-      '**/*.{png,jpg,jpeg,gif,svg,mp3,mp4,avi,flac,ogg,wav,webm}',
+      '**/*.{png,jpg,jpeg,gif,svg,webp,avif,ico,mp3,mp4,avi,flac,ogg,wav,webm,woff,woff2,ttf,otf,eot}',
       async (route: Route, request: PlaywrightRequest) => {
         await route.abort();
       },
@@ -343,6 +356,13 @@ const scrapePage = async (
     contentType: ct,
   };
 };
+
+app.get('/stats', (_req: Request, res: Response) => {
+  res.status(200).json({
+    maxConcurrentPages: MAX_CONCURRENT_PAGES,
+    activePages: MAX_CONCURRENT_PAGES - pageSemaphore.getAvailablePermits(),
+  });
+});
 
 app.get('/health', async (req: Request, res: Response) => {
   try {

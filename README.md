@@ -39,6 +39,16 @@
 
 # **🔥 Firecrawl**
 
+**Modified Firecrawl, AGPL-3.0, optimized to run search and fetch on a Raspberry Pi 5.**
+
+This repository is a fork of [Firecrawl](https://github.com/firecrawl/firecrawl) (`firecrawl/firecrawl`). The original project remains under the GNU Affero General Public License v3.0. Copyright stays with the upstream authors. Source for this modified version is this repository, also linked from `GET /source` when the Pi profile is running.
+
+The Pi 5 profile is one container: the API and 16 Chromium tabs, with no Redis, Postgres, RabbitMQ, or SearXNG. See [apps/api/PI5.md](apps/api/PI5.md).
+
+```bash
+docker compose -f docker-compose.pi5.yaml up --build
+```
+
 **The API to search, scrape, and interact with the web at scale. 🔥** The web data API to find sources, extract content, and turn it into clean Markdown or structured data your agents can ship with. Open source and available as a [hosted service](https://firecrawl.dev/?ref=github).
 
 _Pst. Hey, you, join our stargazers :)_

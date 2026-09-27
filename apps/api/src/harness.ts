@@ -1189,6 +1189,51 @@ async function gracefulShutdown() {
   logger.success("All processes terminated");
 }
 
+async function startPi5(): Promise<void> {
+  logger.section("Starting Pi 5 profile");
+  logger.info(
+    "One API process and Chromium. Postgres, Redis, RabbitMQ, and extra workers stay off.",
+  );
+
+  const playwrightDir =
+    process.env.PLAYWRIGHT_SERVICE_DIR ??
+    join(MONOREPO_ROOT, "apps", "playwright-service-ts");
+  const compiledPlaywright = join(playwrightDir, "dist", "api.js");
+  if (!existsSync(compiledPlaywright)) {
+    throw new Error(
+      `Chromium service is not built at ${compiledPlaywright}. The Pi image builds it.`,
+    );
+  }
+
+  const playwright = execForward("chromium", ["node", compiledPlaywright], {
+    PORT: "3000",
+    PI5_PROFILE: "true",
+    MAX_CONCURRENT_PAGES: process.env.MAX_CONCURRENT_PAGES ?? "16",
+    BLOCK_MEDIA: process.env.BLOCK_MEDIA ?? "true",
+  });
+
+  logger.info("Waiting for Chromium on 127.0.0.1:3000");
+  await waitForPort(3000, "127.0.0.1");
+  logger.success("Chromium is ready");
+
+  const api = execForward("api", ["node", join(__dirname, "pi5", "server.js")], {
+    PI5_PROFILE: "true",
+    PLAYWRIGHT_MICROSERVICE_URL:
+      process.env.PLAYWRIGHT_MICROSERVICE_URL ?? "http://127.0.0.1:3000/scrape",
+    LOGGING_LEVEL: process.env.LOGGING_LEVEL ?? "warn",
+    HOST: process.env.HOST ?? "0.0.0.0",
+  });
+
+  logger.info(`Waiting for API on 127.0.0.1:${PORT}`);
+  await waitForPort(Number(PORT), "127.0.0.1");
+  logger.success("Pi 5 API is ready");
+
+  await Promise.race([playwright.promise, api.promise]).catch(error => {
+    logger.error("Pi 5 process exited", error);
+    serviceError = true;
+  });
+}
+
 function printUsage() {
   console.error(
     `${colors.bold}Usage:${colors.reset} pnpm harness <command...>\n`,
@@ -1199,6 +1244,9 @@ function printUsage() {
   );
   console.error(`  --start-built  Start services without rebuilding`);
   console.error(`  --start-docker Start services (skip install, assume built)`);
+  console.error(
+    `  --start-pi5    API plus Chromium only, for a Raspberry Pi 5`,
+  );
 }
 
 async function main() {
@@ -1216,11 +1264,13 @@ async function main() {
     const command = process.argv.slice(2);
     IS_DEV = command[0] === "--start";
 
-    if (command[0] !== "--start-docker") {
+    if (command[0] !== "--start-docker" && command[0] !== "--start-pi5") {
       await installDependencies();
     }
 
-    if (IS_DEV) {
+    if (command[0] === "--start-pi5") {
+      await startPi5();
+    } else if (IS_DEV) {
       await runDevMode();
     } else {
       await runProductionMode(command);

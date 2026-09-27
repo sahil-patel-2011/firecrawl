@@ -73,6 +73,13 @@ const deleteKey = async (key: string) => {
 export { setValue, getValue, deleteKey };
 
 const redisEvictURL = config.REDIS_EVICT_URL ?? config.REDIS_RATE_LIMIT_URL;
-export const redisEvictConnection = new IORedis(redisEvictURL!, {
-  enableAutoPipelining: true,
-});
+export const redisEvictConnection = config.PI5_PROFILE
+  ? new IORedis(redisEvictURL ?? "redis://127.0.0.1:9", {
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 0,
+      retryStrategy: () => null,
+    })
+  : new IORedis(redisEvictURL!, {
+      enableAutoPipelining: true,
+    });

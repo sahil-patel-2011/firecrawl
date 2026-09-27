@@ -124,6 +124,7 @@ import {
 import { resolveThreatProtection } from "../../lib/threat-protection/request";
 import { UnsafeDomainBlockedError } from "../../lib/threat-protection/error";
 import { canonicalizeUrl } from "../../lib/threat-protection/providers/web-risk/canonicalize";
+import { isThinHtml } from "../../pi5/html";
 
 export type ScrapeUrlResponse =
   | {
@@ -1084,6 +1085,18 @@ async function scrapeURLLoop(meta: Meta): Promise<ScrapeUrlResponse> {
         meta.logger.info("Waterfalling to next engine...", {
           waitUntilWaterfall,
         });
+      } else if (
+        config.PI5_PROFILE &&
+        result.engine === "fetch" &&
+        isThinHtml(result.result.html, config.PI5_THIN_TEXT_CHARS) &&
+        (remainingEngines.some(entry => entry.engine === "playwright") ||
+          enginePromises.some(entry => entry.engine === "playwright"))
+      ) {
+        meta.logger.info("Fetch returned a thin page; opening a Chromium tab");
+        result = null;
+        enginePromises = enginePromises.filter(
+          entry => entry.engine !== "fetch",
+        );
       } else {
         break;
       }

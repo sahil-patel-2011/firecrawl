@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { config } from "../../../../config";
+import { stripHeavyHtml } from "../../../../pi5/html";
 import { EngineScrapeResult } from "..";
 import { Meta } from "../..";
 import { robustFetch } from "../../lib/fetch";
@@ -36,9 +37,13 @@ export async function scrapeURLWithPlaywright(
     response.content = await getInnerJson(response.content);
   }
 
+  const html = config.PI5_PROFILE
+    ? stripHeavyHtml(response.content).slice(0, config.PI5_HTML_MAX_BYTES)
+    : response.content;
+
   return {
     url: meta.rewrittenUrl ?? meta.url, // TODO: impove redirect following
-    html: response.content,
+    html,
     statusCode: response.pageStatusCode,
     error: response.pageError,
     contentType: response.contentType,

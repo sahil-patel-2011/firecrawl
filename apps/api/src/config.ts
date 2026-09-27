@@ -626,6 +626,24 @@ const configSchema = z.object({
   EXTRACT_ANCHOR_MODEL: z.string().default("openai/gpt-oss-120b"),
   EXTRACT_LIGHT_MODEL: z.string().default("openai/gpt-oss-20b"),
   CODE_SANDBOX_URL: z.string().default("ws://code-sandbox:3001"),
+
+  // Raspberry Pi 5 single-process profile. See apps/api/PI5.md.
+  PI5_PROFILE: z.stringbool().default(false),
+  PI5_API_KEYS: z.string().optional(),
+  PI5_SOURCE_REPO: z
+    .string()
+    .default("https://github.com/sahil-patel-2011/firecrawl"),
+  PI5_UPSTREAM_REPO: z
+    .string()
+    .default("https://github.com/firecrawl/firecrawl"),
+  PI5_THIN_TEXT_CHARS: z.coerce.number().int().positive().default(80),
+  PI5_HTML_MAX_BYTES: z.coerce.number().int().positive().default(5000000),
+  PI5_FETCH_CONCURRENCY: z.coerce.number().int().positive().default(48),
+  PI5_SEARCH_CONCURRENCY: z.coerce.number().int().positive().default(8),
+  PI5_PER_KEY_RPM: z.coerce.number().int().positive().default(800),
+  PI5_CACHE_MAX_ENTRIES: z.coerce.number().int().positive().default(2000),
+  PI5_SEARCH_TTL_MS: z.coerce.number().int().positive().default(600000),
+  PI5_FETCH_TTL_MS: z.coerce.number().int().positive().default(300000),
 });
 
 const validatedConfigSchema = configSchema.superRefine((value, context) => {

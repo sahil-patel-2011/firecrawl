@@ -32,14 +32,31 @@ function createBaseAgent(skipTlsVerification: boolean) {
           rejectUnauthorized: !skipTlsVerification, // Only bypass SSL verification if explicitly requested
         },
       })
-    : new undici.Agent({
-        connect: {
-          rejectUnauthorized: !skipTlsVerification, // Only bypass SSL verification if explicitly requested
-        },
-      });
+    : new undici.Agent(
+        config.PI5_PROFILE
+          ? {
+              connections: 8,
+              pipelining: 1,
+              keepAliveTimeout: 30_000,
+              keepAliveMaxTimeout: 60_000,
+              connect: {
+                rejectUnauthorized: !skipTlsVerification,
+              },
+            }
+          : {
+              connect: {
+                rejectUnauthorized: !skipTlsVerification, // Only bypass SSL verification if explicitly requested
+              },
+            },
+      );
 
-  // Add redirect interceptor for handling redirects
-  return baseAgent.compose(interceptors.redirect({ maxRedirections: 5000 }));
+  // Add redirect interceptor for handling redirects.
+  // The Pi profile caps redirects so a redirect loop cannot stall a worker.
+  return baseAgent.compose(
+    interceptors.redirect({
+      maxRedirections: config.PI5_PROFILE ? 10 : 5000,
+    }),
+  );
 }
 
 function attachSecurityCheck(agent: undici.Dispatcher) {

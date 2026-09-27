@@ -4,9 +4,17 @@ import { RateLimiterMode } from "../types";
 import type { TeamFlags } from "../controllers/v1/types";
 import Redis from "ioredis";
 
-export const redisRateLimitClient = new Redis(config.REDIS_RATE_LIMIT_URL!, {
-  enableAutoPipelining: true,
-});
+// The Pi profile keeps cache and limits in-process and must not dial Redis.
+export const redisRateLimitClient = config.PI5_PROFILE
+  ? new Redis(config.REDIS_RATE_LIMIT_URL ?? "redis://127.0.0.1:9", {
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 0,
+      retryStrategy: () => null,
+    })
+  : new Redis(config.REDIS_RATE_LIMIT_URL!, {
+      enableAutoPipelining: true,
+    });
 
 const createRateLimiter = (keyPrefix, points) =>
   new RateLimiterRedis({

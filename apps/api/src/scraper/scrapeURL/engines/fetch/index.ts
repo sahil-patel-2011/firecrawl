@@ -1,4 +1,6 @@
 import * as undici from "undici";
+import { config } from "../../../../config";
+import { stripHeavyHtml } from "../../../../pi5/html";
 import { EngineScrapeResult } from "..";
 import { Meta } from "../..";
 import { SSLError } from "../../error";
@@ -160,7 +162,9 @@ export async function scrapeURLWithFetch(
         signal: meta.abort.asSignal(),
       });
 
-      const buf = Buffer.from(await x.arrayBuffer());
+      const buf = config.PI5_PROFILE
+        ? await readCappedBody(x, config.PI5_HTML_MAX_BYTES)
+        : Buffer.from(await x.arrayBuffer());
       const contentType = x.headers.get("content-type") ?? undefined;
       const { text, charset, charsetSource, decodeError } = decodeHtmlBuffer(
         buf,
@@ -216,9 +220,13 @@ export async function scrapeURLWithFetch(
     Object.fromEntries(response.headers as any),
   );
 
+  const html = config.PI5_PROFILE
+    ? stripHeavyHtml(response.body).slice(0, config.PI5_HTML_MAX_BYTES)
+    : response.body;
+
   return {
     url: response.url,
-    html: response.body,
+    html,
     statusCode: response.status,
     contentType:
       (response.headers.find(x => x[0].toLowerCase() === "content-type") ??
@@ -230,4 +238,32 @@ export async function scrapeURLWithFetch(
 
 export function fetchMaxReasonableTime(meta: Meta): number {
   return 15000;
+}
+
+async function readCappedBody(
+  response: undici.Response,
+  maxBytes: number,
+): Promise<Buffer> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return Buffer.alloc(0);
+  }
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done || !value) {
+      break;
+    }
+    if (total + value.byteLength > maxBytes) {
+      chunks.push(value.subarray(0, Math.max(0, maxBytes - total)));
+      await reader.cancel();
+      break;
+    }
+    chunks.push(value);
+    total += value.byteLength;
+  }
+
+  return Buffer.concat(chunks);
 }

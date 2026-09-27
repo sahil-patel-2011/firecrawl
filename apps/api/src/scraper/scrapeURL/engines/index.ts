@@ -607,6 +607,12 @@ const engineOptions: {
   },
 };
 
+// On the Pi, HTTP fetch is the fast path. Playwright stays available, at a
+// lower quality, for pages whose fetched HTML has almost no text.
+if (config.PI5_PROFILE) {
+  engineOptions.fetch.quality = 100;
+}
+
 export function shouldUseIndex(meta: Meta) {
   if (meta.internalOptions.isParse) {
     return false;

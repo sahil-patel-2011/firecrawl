@@ -1,0 +1,25 @@
+name: firecrawl-pi5
+
+services:
+  firecrawl:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.pi5
+    env_file:
+      - .env.pi5
+    ports:
+      - "3002:3002"
+    shm_size: "1gb"
+    mem_limit: 6.5g
+    memswap_limit: 6.5g
+    cpus: 4
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
